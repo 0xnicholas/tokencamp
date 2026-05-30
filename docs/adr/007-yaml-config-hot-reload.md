@@ -63,7 +63,7 @@ router_settings:
 
 hooks:
   enabled:
-    - max_budget_limiter
+    - parallel_request_limiter
     - cost_tracker
 ```
 

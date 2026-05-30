@@ -32,7 +32,7 @@ let client = Client::builder()
 
 3. **统一内部中间格式**: Core Library 内的 Router、Hook 和所有 Provider 适配器都操作同一种请求/响应格式（通过 `serde` 序列化为 Rust 结构体）。新增 Provider 只需要实现「OpenAI → Provider」的转换 trait，不需要关心其他 Provider 的格式。
 
-4. **Gateway 逻辑简化**: Gateway 层的 Hook（预算检查、内容护栏）只需要解析一种 request/response 格式。不需要每个 Provider 写一遍。
+4. **Gateway 逻辑简化**: Gateway 层的 Hook（内容护栏、成本追踪）只需要解析一种 request/response 格式。不需要每个 Provider 写一遍。
 
 5. **与 LiteLLM 一致**: 参考项目 LiteLLM 同样使用 OpenAI 兼容格式，生态和工具链完全对齐。
 

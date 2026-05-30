@@ -67,8 +67,7 @@ SpendWriter.flush():
   │     LTRIM spend_queue BATCH_SIZE -1
   ├── EXEC (原子执行，取出的条目不会因崩溃丢失)
   ├── 批量 INSERT INTO spend_logs (幂等：用 request_id 去重)
-  ├── UPDATE api_keys SET total_spend = total_spend + delta
-  └── UPDATE teams SET total_spend = total_spend + delta
+  └── UPDATE api_keys SET total_spend = total_spend + delta
 ```
 
 ## 后果

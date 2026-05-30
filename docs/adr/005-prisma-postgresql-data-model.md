@@ -8,7 +8,7 @@
 
 ## 背景
 
-Tokencamp 的多租户 SaaS 架构需要管理复杂的实体关系：Organization → Team → ApiKey → Budget → SpendLog，以及 Deployment、Credential 等配置实体。需要一个类型安全、异步原生、迁移管理方便的数据访问方案。
+Tokencamp 的 API Gateway 需要管理 API Key 认证、用量追踪（SpendLog）、部署配置（Deployment）、Provider 凭证（Credential）等实体。需要一个类型安全、异步原生、迁移管理方便的数据访问方案。
 
 ## 决策
 
@@ -26,28 +26,18 @@ Tokencamp 的多租户 SaaS 架构需要管理复杂的实体关系：Organizati
 
 5. **无 ORM 开销**: SQLx 不是 ORM，不生成额外的查询抽象层。每个查询就是手写的精确 SQL，性能可预期，没有 N+1 查询隐患。对于 SpendLog 批量写入和聚合查询等性能敏感场景，可以精细控制 SQL。
 
-6. **PostgreSQL 的成熟生态**: JSONB 列（`model_info`、`litellm_params`）、数组列（`allowed_models`）、部分索引（`WHERE` 子句）、BRIN 索引（时序数据）等特性完美契合多租户和时序追踪场景。SQLx 对这些类型有原生支持。
+6. **PostgreSQL 的成熟生态**: JSONB 列（`model_info`、`provider_params`）、部分索引（`WHERE` 子句）、BRIN 索引（时序数据）等特性完美契合配置管理和时序追踪场景。SQLx 对这些类型有原生支持。
 
-## 核心表关系
+## 核心实体
 
 ```
-Organization ──┬── Team ──┬── ApiKey ──── Budget
-               │          │     │
-               │          │     └── SpendLog
-               │          │
-               │          └── SpendLog
-               │
-               ├── ApiKey ──── Budget
-               │     │
-               │     └── SpendLog
-               │
-               └── SpendLog
+ApiKey ──── SpendLog
 
-Deployment (独立，不属于租户)
+Deployment (独立，不属于 Key)
 Credential (独立，Provider 凭证加密存储)
 ```
 
-每条 SpendLog 同时记录 `org_id`、`team_id`（可选）、`key_id`（可选），支持按任意维度聚合查询。聚合字段 `total_spend` 在 Org、Team、ApiKey 三层分别维护。
+每条 SpendLog 记录 `key_id`、`model`、`provider`、`tokens`、`cost`、`request_id`。聚合字段 `total_spend` 在 ApiKey 上维护。
 
 ## Schema 管理方式
 
@@ -55,38 +45,34 @@ Credential (独立，Provider 凭证加密存储)
 
 ```sql
 -- migrations/20260101_initial_schema.up.sql
-CREATE TABLE organizations (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        TEXT NOT NULL,
-    total_spend DOUBLE PRECISION NOT NULL DEFAULT 0,
-    max_budget  DOUBLE PRECISION,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE teams (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES organizations(id),
-    name        TEXT NOT NULL,
-    total_spend DOUBLE PRECISION NOT NULL DEFAULT 0,
-    max_budget  DOUBLE PRECISION,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE api_keys (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key_hash        TEXT NOT NULL UNIQUE,
-    org_id          UUID NOT NULL REFERENCES organizations(id),
-    team_id         UUID REFERENCES teams(id),
-    allowed_models  TEXT[] DEFAULT '{}',
-    tpm_limit       INTEGER,
-    rpm_limit       INTEGER,
-    total_spend     DOUBLE PRECISION NOT NULL DEFAULT 0,
-    max_budget      DOUBLE PRECISION,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key_hash    TEXT NOT NULL UNIQUE,
+    name        TEXT,
+    tpm_limit   INTEGER,
+    rpm_limit   INTEGER,
+    total_spend DOUBLE PRECISION NOT NULL DEFAULT 0,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_api_keys_org ON api_keys(org_id);
+CREATE TABLE spend_logs (
+    id          BIGSERIAL PRIMARY KEY,
+    key_id      UUID REFERENCES api_keys(id),
+    request_id  TEXT NOT NULL UNIQUE,
+    model       TEXT NOT NULL,
+    provider    TEXT NOT NULL,
+    prompt_tokens   INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    cost        DOUBLE PRECISION NOT NULL DEFAULT 0,
+    duration_ms INTEGER,
+    status      TEXT NOT NULL DEFAULT 'success',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_spend_logs_key ON spend_logs(key_id);
 CREATE INDEX idx_spend_logs_created ON spend_logs USING BRIN (created_at);
+CREATE INDEX idx_spend_logs_request ON spend_logs(request_id);
 ```
 
 Rust 中使用编译期验证的查询：
@@ -95,21 +81,21 @@ Rust 中使用编译期验证的查询：
 // 类型安全的查询（编译时验证 SQL 和列类型）
 let key = sqlx::query_as!(
     ApiKey,
-    r#"SELECT id, key_hash, org_id, team_id, allowed_models,
-              tpm_limit, rpm_limit, total_spend, max_budget, created_at
+    r#"SELECT id, key_hash, name, tpm_limit, rpm_limit,
+              total_spend, is_active, created_at
        FROM api_keys WHERE key_hash = $1"#,
     hash
 )
 .fetch_optional(&pool)
 .await?;
 
-// 复杂聚合查询也享受编译期检查
+// 聚合查询也享受编译期检查
 let stats = sqlx::query_as!(
-    OrgSpendStats,
-    r#"SELECT org_id, SUM(cost) as total_cost, COUNT(*) as request_count
+    KeySpendStats,
+    r#"SELECT key_id, SUM(cost) as total_cost, COUNT(*) as request_count
        FROM spend_logs
        WHERE created_at >= $1
-       GROUP BY org_id"#,
+       GROUP BY key_id"#,
     since
 )
 .fetch_all(&pool)

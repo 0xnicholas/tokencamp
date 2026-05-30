@@ -20,13 +20,13 @@ Tokencamp 作为 SaaS 产品需要全面的可观测性：(1) 运维团队需要
 
 | 指标 | 类型 | 标签 | 用途 |
 |------|------|------|------|
-| `tokencamp_requests_total` | Counter | `model, provider, org_id, status` | 请求量统计 |
-| `tokencamp_request_duration_seconds` | Histogram | `model, provider, org_id` | 延迟分布 (P50/P95/P99) |
-| `tokencamp_tokens_total` | Counter | `model, provider, org_id, type(prompt\|completion)` | Token 用量 |
-| `tokencamp_cost_dollars_total` | Counter | `model, provider, org_id` | 费用统计 |
+| `tokencamp_requests_total` | Counter | `model, provider, status` | 请求量统计 |
+| `tokencamp_request_duration_seconds` | Histogram | `model, provider` | 延迟分布 (P50/P95/P99) |
+| `tokencamp_tokens_total` | Counter | `model, provider, type(prompt\|completion)` | Token 用量 |
+| `tokencamp_cost_dollars_total` | Counter | `model, provider` | 费用统计 |
 | `tokencamp_errors_total` | Counter | `model, provider, error_type` | 错误分类 |
 | `tokencamp_deployment_health` | Gauge | `deployment_id, status(0\|1)` | Deployment 健康 |
-| `tokencamp_rate_limited_total` | Counter | `org_id, reason(budget\|tpm\|rpm)` | 限流触发次数 |
+| `tokencamp_rate_limited_total` | Counter | `reason(tpm\|rpm)` | 限流触发次数 |
 | `tokencamp_active_connections` | Gauge | — | 活跃 SSE 连接数 |
 | `tokencamp_db_latency_seconds` | Histogram | `operation` | DB 查询延迟 |
 
@@ -42,7 +42,6 @@ Tokencamp 作为 SaaS 产品需要全面的可观测性：(1) 运维团队需要
   "level": "INFO",
   "event": "request_completed",
   "request_id": "req_abc123",
-  "org_id": "org_xyz",
   "key_id": "key_456",
   "model": "gpt-5",
   "provider": "openai",
@@ -56,7 +55,7 @@ Tokencamp 作为 SaaS 产品需要全面的可观测性：(1) 运维团队需要
 
 **日志级别约定：**
 - `INFO`: 正常请求完成
-- `WARN`: 重试/fallback 触发、预算软上限告警
+- `WARN`: 重试/fallback 触发、限流阈值告警
 - `ERROR`: Provider 调用失败、DB/Redis 连接失败
 
 敏感字段（API Key 明文、Token 内容）从不写入日志。通过 `SensitiveDataMasker` 层在 tracing span 创建前清理。
@@ -75,7 +74,7 @@ Gateway Request (root span, request_id)
   │     ├── Redis: GET key_cache
   │     └── PG: SELECT api_key (if cache miss)
   ├── Pre-call Hooks (span)
-  │     ├── max_budget_limiter
+  │     ├── parallel_request_limiter
   │     └── content_guard
   ├── Router.select_deployment (span)
   │     ├── Redis: GET cooldown
@@ -90,7 +89,7 @@ Gateway Request (root span, request_id)
 实现方式：
 - `axum-tracing-opentelemetry` 或 `tower-http` trace layer 中间件自动创建 root span
 - 关键操作内部通过 `tracing` crate 的 `#[instrument]` 宏手动创建子 span
-- Span 属性通过 `tracing-opentelemetry` 的 `OpenTelemetrySpanExt` 注入 `org_id`, `model`, `deployment_id` 等业务标识
+- Span 属性通过 `tracing-opentelemetry` 的 `OpenTelemetrySpanExt` 注入 `key_id`, `model`, `deployment_id` 等业务标识
 
 ### 告警规则
 
@@ -109,11 +108,6 @@ groups:
         for: 2m
         annotations:
           summary: "Deployment {{ $labels.deployment_id }} 不健康超过 2 分钟"
-
-      - alert: BudgetExhausted
-        expr: increase(tokencamp_rate_limited_total{reason="budget"}[1h]) > 0
-        annotations:
-          summary: "有租户预算耗尽"
 
       - alert: HighLatency
         expr: histogram_quantile(0.95, tokencamp_request_duration_seconds) > 10
