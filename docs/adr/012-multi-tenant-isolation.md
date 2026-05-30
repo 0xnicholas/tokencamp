@@ -12,7 +12,7 @@
 
 ## 决策
 
-**多租户功能从本项目移除**，在独立项目 `tokencamp-hub` 中单独建设。当前 Tokencamp 聚焦单一场景：作为 LLM API Gateway 提供统一接入、智能调度和流式处理能力，不内置多租户管理。
+**多租户功能从本项目移除**，由独立的项目负责。当前 Tokencamp 聚焦单一场景：作为 LLM API Gateway 提供统一接入、智能调度和流式处理能力，不内置多租户管理。
 
 ## 理由
 
@@ -44,8 +44,8 @@ API Key 仅用于认证和 TPM/RPM 限流，不绑定租户层级。
 
 - **正面**: Gateway 核心逻辑更简洁，数据模型从 6 表（Org/Team/Key/Budget/SpendLog/Deployment）简化为 3 表（Key/SpendLog/Deployment）
 - **正面**: 减少了多层 Hook 和权限检查链
-- **负面**: 多租户能力需要 tokencamp-hub 项目建成后才能使用
-- **缓解**: tokencamp-hub 作为 Gateway 的上游代理层部署，不在 Gateway 内部耦合
+- **负面**: 多租户能力需要独立项目建成后才能使用
+- **缓解**: 独立项目作为 Gateway 的上游代理层部署，不在 Gateway 内部耦合
 
 ## 备选方案
 
