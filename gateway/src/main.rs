@@ -92,9 +92,9 @@ async fn main() {
     let config = Arc::new(config::load("config/default.yaml").expect("Failed to load config"));
     let handler = Arc::new(HttpHandler::new());
 
-    let cooldown = match &config.redis.url {
-        Some(redis_url) => {
-            let client = redis::Client::open(redis_url.as_str())
+    let cooldown = match config.redis.url.as_deref() {
+        Some(url) if !url.is_empty() && url != "${REDIS_URL}" => {
+            let client = redis::Client::open(url)
                 .expect("Failed to create Redis client");
             let conn = client
                 .get_multiplexed_async_connection()
@@ -102,7 +102,7 @@ async fn main() {
                 .expect("Failed to connect to Redis");
             CooldownManager::new_redis(conn)
         }
-        None => CooldownManager::new_in_memory(),
+        _ => CooldownManager::new_in_memory(),
     };
 
     let app_router = Arc::new(router::Router::new(cooldown));

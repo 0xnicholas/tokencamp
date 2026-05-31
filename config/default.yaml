@@ -15,7 +15,7 @@ router_settings:
   cooldown_time: 30
 
 redis:
-  url: ${REDIS_URL}   # optional, falls back to in-memory cooldown
+  # url: ${REDIS_URL}  # optional, falls back to in-memory cooldown
 
 providers:
   openai:
