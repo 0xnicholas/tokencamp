@@ -37,3 +37,5 @@ pub trait ProviderConfig: Send + Sync {
 
     fn base_url(&self) -> &str;
 }
+
+pub mod openai;
