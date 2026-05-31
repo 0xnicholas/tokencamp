@@ -1,3 +1,9 @@
+mod config;
+mod auth;
+mod error;
+mod routes;
+
 fn main() {
-    println!("Tokencamp v0.1");
+    let config = config::load("config/default.yaml").expect("Failed to load config");
+    println!("Config loaded: {:?}", config.server);
 }
