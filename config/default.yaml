@@ -11,8 +11,8 @@ auth:
 providers:
   openai:
     api_key: ${OPENAI_API_KEY}
-    base_url: "https://api.openai.com"
+    base_url: "https://api.deepseek.com"
 
 model_list:
-  - model_name: gpt-4o-mini
+  - model_name: deepseek-chat
     provider: openai
