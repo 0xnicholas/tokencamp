@@ -52,3 +52,4 @@ pub trait ProviderConfig: Send + Sync {
 pub type ChunkTransformer = fn(&ChatRequest, &str, &serde_json::Value) -> OpenAiChunk;
 
 pub mod openai;
+pub mod anthropic;
