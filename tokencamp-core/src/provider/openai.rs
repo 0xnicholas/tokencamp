@@ -94,6 +94,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: None,
+            extra: std::collections::HashMap::new(),
         };
         let mut headers = HeaderMap::new();
 

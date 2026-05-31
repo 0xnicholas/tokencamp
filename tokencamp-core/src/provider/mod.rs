@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use reqwest::{header::HeaderMap, Method, StatusCode};
 
-use crate::types::{ChatRequest, ModelResponse};
+use crate::types::{ChatRequest, ModelResponse, OpenAiChunk};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
@@ -36,6 +36,19 @@ pub trait ProviderConfig: Send + Sync {
     ) -> Result<ModelResponse, ProviderError>;
 
     fn base_url(&self) -> &str;
+
+    /// 是否 passthrough 模式（不做请求体转换，只加认证头）
+    fn is_passthrough(&self) -> bool {
+        false
+    }
+
+    /// 流式 chunk 转换器。None = 不支持流式
+    fn chunk_transformer(&self) -> Option<ChunkTransformer> {
+        None
+    }
 }
+
+/// chunk 转换函数: (request, event_type, data) → OpenAiChunk
+pub type ChunkTransformer = fn(&ChatRequest, &str, &serde_json::Value) -> OpenAiChunk;
 
 pub mod openai;
