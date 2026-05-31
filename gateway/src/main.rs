@@ -23,6 +23,7 @@ pub struct AppState {
     pub config: Arc<config::Config>,
     pub handler: Arc<HttpHandler>,
     pub app_router: Arc<router::Router>,
+    pub cooldown: Arc<CooldownManager>,
     pub retry_config: Arc<RetryConfig>,
 }
 
@@ -106,12 +107,14 @@ async fn main() {
     };
 
     let app_router = Arc::new(router::Router::new(cooldown));
+    let cooldown = app_router.cooldown().clone();
     let retry_config = Arc::new(RetryConfig::from(config.router_settings.clone()));
 
     let state = AppState {
         config,
         handler,
         app_router,
+        cooldown,
         retry_config,
     };
 

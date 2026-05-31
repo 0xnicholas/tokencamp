@@ -1,10 +1,11 @@
 // gateway/src/router/mod.rs
 pub mod cooldown;
 
+use std::sync::Arc;
+
 use rand::seq::SliceRandom;
 
 use crate::config::ModelEntry;
-use cooldown::CooldownManager;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RouterError {
@@ -13,12 +14,16 @@ pub enum RouterError {
 }
 
 pub struct Router {
-    cooldown: CooldownManager,
+    cooldown: Arc<cooldown::CooldownManager>,
 }
 
 impl Router {
-    pub fn new(cooldown: CooldownManager) -> Self {
-        Self { cooldown }
+    pub fn new(cooldown: cooldown::CooldownManager) -> Self {
+        Self { cooldown: Arc::new(cooldown) }
+    }
+
+    pub fn cooldown(&self) -> &Arc<cooldown::CooldownManager> {
+        &self.cooldown
     }
 
     pub async fn select_deployment<'a>(
@@ -42,9 +47,5 @@ impl Router {
         // simple-shuffle
         let mut rng = rand::thread_rng();
         Ok(available.choose(&mut rng).unwrap())
-    }
-
-    pub fn cooldown_manager(&self) -> &CooldownManager {
-        &self.cooldown
     }
 }

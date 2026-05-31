@@ -5,7 +5,12 @@ use std::sync::Mutex;
 
 pub enum CooldownBackend {
     Redis(MultiplexedConnection),
-    InMemory(Mutex<HashMap<String, std::time::Instant>>),
+    InMemory(Mutex<CooldownState>),
+}
+
+pub struct CooldownState {
+    cooldowns: HashMap<String, std::time::Instant>,
+    failures: HashMap<String, u32>,
 }
 
 pub struct CooldownManager {
@@ -21,7 +26,10 @@ impl CooldownManager {
 
     pub fn new_in_memory() -> Self {
         Self {
-            backend: CooldownBackend::InMemory(Mutex::new(HashMap::new())),
+            backend: CooldownBackend::InMemory(Mutex::new(CooldownState {
+                cooldowns: HashMap::new(),
+                failures: HashMap::new(),
+            })),
         }
     }
 
@@ -37,8 +45,8 @@ impl CooldownManager {
                     .await
                     .map_err(|e| e.to_string())
             }
-            CooldownBackend::InMemory(map) => {
-                map.lock().unwrap().insert(
+            CooldownBackend::InMemory(state) => {
+                state.lock().unwrap().cooldowns.insert(
                     deployment_id.to_string(),
                     std::time::Instant::now() + std::time::Duration::from_secs(ttl_secs),
                 );
@@ -58,12 +66,58 @@ impl CooldownManager {
                     .unwrap_or(0i32)
                     > 0
             }
-            CooldownBackend::InMemory(map) => {
-                if let Some(expiry) = map.lock().unwrap().get(deployment_id) {
+            CooldownBackend::InMemory(state) => {
+                if let Some(expiry) = state.lock().unwrap().cooldowns.get(deployment_id) {
                     *expiry > std::time::Instant::now()
                 } else {
                     false
                 }
+            }
+        }
+    }
+
+    /// 记录失败，返回当前连续失败次数
+    pub async fn record_failure(&self, deployment_id: &str) -> u32 {
+        match &self.backend {
+            CooldownBackend::Redis(conn) => {
+                let mut conn = conn.clone();
+                let key = format!("deployment:{}:failures", deployment_id);
+                let count: u32 = redis::cmd("INCR")
+                    .arg(&key)
+                    .query_async(&mut conn)
+                    .await
+                    .unwrap_or(1);
+                // 设置 TTL 防止泄漏
+                let _: () = redis::cmd("EXPIRE")
+                    .arg(&key)
+                    .arg(120) // 2 min
+                    .query_async(&mut conn)
+                    .await
+                    .unwrap_or(());
+                count
+            }
+            CooldownBackend::InMemory(state) => {
+                let mut state = state.lock().unwrap();
+                let count = state.failures.entry(deployment_id.to_string()).or_insert(0);
+                *count += 1;
+                *count
+            }
+        }
+    }
+
+    /// 一次成功调用后重置失败计数器
+    pub async fn record_success(&self, deployment_id: &str) {
+        match &self.backend {
+            CooldownBackend::Redis(conn) => {
+                let mut conn = conn.clone();
+                let _: () = redis::cmd("DEL")
+                    .arg(format!("deployment:{}:failures", deployment_id))
+                    .query_async(&mut conn)
+                    .await
+                    .unwrap_or(());
+            }
+            CooldownBackend::InMemory(state) => {
+                state.lock().unwrap().failures.remove(deployment_id);
             }
         }
     }
