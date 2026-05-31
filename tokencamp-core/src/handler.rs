@@ -6,7 +6,7 @@ use bytes::Bytes;
 use reqwest::header::HeaderMap;
 use serde_json::{json, Value};
 
-use crate::provider::{ChunkTransformer, ProviderConfig, ProviderError};
+use crate::provider::{ProviderConfig, ProviderError};
 use crate::streaming::StreamWrapper;
 use crate::types::{ChatRequest, ModelResponse, OpenAiChunk};
 

@@ -5,7 +5,7 @@ use axum::{
 };
 use futures::StreamExt;
 use std::sync::Arc;
-use tokencamp_core::{ChatRequest, ModelResponse};
+use tokencamp_core::ChatRequest;
 
 use crate::{auth::KeyAuth, error::AppError, extractors::ValidJson, AppState};
 

@@ -26,6 +26,7 @@ impl From<crate::config::RouterSettings> for RetryConfig {
     }
 }
 
+#[allow(dead_code)]
 pub fn is_retryable(e: &ProviderError) -> bool {
     matches!(
         e,
@@ -37,6 +38,7 @@ pub fn is_retryable(e: &ProviderError) -> bool {
     )
 }
 
+#[allow(dead_code)]
 pub fn retry_delay(attempt: u32, base: f64) -> Duration {
     let ms = (base * 1000.0 * 2f64.powi(attempt as i32)) as u64 + rand::random::<u64>() % 100;
     Duration::from_millis(ms)

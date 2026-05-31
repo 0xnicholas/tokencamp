@@ -23,7 +23,7 @@ impl Router {
 
     pub async fn select_deployment<'a>(
         &self,
-        model_name: &str,
+        _model_name: &str,
         deployments: &'a [ModelEntry],
     ) -> Result<&'a ModelEntry, RouterError> {
         // 过滤 cooldown 中的 Deployment
