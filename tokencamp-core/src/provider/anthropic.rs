@@ -277,3 +277,103 @@ fn anthropic_chunk_to_openai(
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{ChatRequest, Message};
+    use std::collections::HashMap;
+
+    fn make_request() -> ChatRequest {
+        ChatRequest {
+            model: "claude-sonnet-4-5".to_string(),
+            messages: vec![
+                Message { role: "system".to_string(), content: "You are helpful.".to_string() },
+                Message { role: "user".to_string(), content: "Hello".to_string() },
+            ],
+            temperature: Some(0.7),
+            max_tokens: Some(500),
+            stream: Some(false),
+            extra: HashMap::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_transform_request_chat_mode() {
+        let config = AnthropicConfig::new(None, "claude-sonnet-4-5-20250929".into(), AnthropicMode::Chat);
+        let mut headers = HeaderMap::new();
+        let (method, path, body) = config.transform_request(&make_request(), "test-key", &mut headers).await.unwrap();
+        assert_eq!(method, Method::POST);
+        assert_eq!(path, "/v1/messages");
+        assert_eq!(headers["x-api-key"], "test-key");
+        assert_eq!(body["system"][0]["text"], "You are helpful.");
+        assert_eq!(body["messages"][0]["content"], "Hello");
+        assert_eq!(body["model"], "claude-sonnet-4-5-20250929");
+        assert_eq!(body["max_tokens"], 500);
+    }
+
+    #[tokio::test]
+    async fn test_transform_request_defaults() {
+        let config = AnthropicConfig::new(None, "x".into(), AnthropicMode::Chat);
+        let req = ChatRequest { model: "x".into(), messages: vec![Message { role: "user".into(), content: "Hi".into() }], temperature: None, max_tokens: None, stream: None, extra: HashMap::new() };
+        let mut headers = HeaderMap::new();
+        let (_, _, body) = config.transform_request(&req, "k", &mut headers).await.unwrap();
+        assert_eq!(body["max_tokens"], 1024);
+        assert!(body.get("system").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_transform_response_chat_mode() {
+        let config = AnthropicConfig::new(None, "x".into(), AnthropicMode::Chat);
+        let body = Bytes::from(r#"{"id":"msg_123","model":"x","content":[{"type":"text","text":"Hi!"}],"stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":5}}"#);
+        let result = config.transform_response(StatusCode::OK, &HeaderMap::new(), body).await.unwrap();
+        assert_eq!(result.choices[0].message.content, "Hi!");
+        assert_eq!(result.usage.total_tokens, 15);
+    }
+
+    #[tokio::test]
+    async fn test_transform_response_error() {
+        let config = AnthropicConfig::new(None, "x".into(), AnthropicMode::Chat);
+        let body = Bytes::from(r#"{"error":{"message":"bad key"}}"#);
+        let err = config.transform_response(StatusCode::UNAUTHORIZED, &HeaderMap::new(), body).await.unwrap_err();
+        assert!(matches!(err, ProviderError::UpstreamError { status: 401, .. }));
+    }
+
+    #[tokio::test]
+    async fn test_sse_content_block_delta() {
+        let data = serde_json::json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}});
+        let chunk = anthropic_chunk_to_openai(&make_request(), "content_block_delta", &data);
+        assert_eq!(chunk.choices[0].delta.content.as_deref(), Some("Hi"));
+    }
+
+    #[tokio::test]
+    async fn test_sse_message_start() {
+        let data = serde_json::json!({"message":{"id":"m1","model":"c3"}});
+        let chunk = anthropic_chunk_to_openai(&make_request(), "message_start", &data);
+        assert_eq!(chunk.choices[0].delta.role.as_deref(), Some("assistant"));
+    }
+
+    #[tokio::test]
+    async fn test_sse_message_delta() {
+        let data = serde_json::json!({"delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":10,"output_tokens":5}});
+        let chunk = anthropic_chunk_to_openai(&make_request(), "message_delta", &data);
+        assert_eq!(chunk.usage.unwrap().prompt_tokens, 10);
+        assert!(chunk.choices[0].finish_reason.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_sse_message_stop() {
+        let chunk = anthropic_chunk_to_openai(&make_request(), "message_stop", &serde_json::json!({}));
+        assert!(chunk.done);
+    }
+
+    #[tokio::test]
+    async fn test_mode_switching() {
+        let chat = AnthropicConfig::new(None, "x".into(), AnthropicMode::Chat);
+        let msg = AnthropicConfig::new(None, "x".into(), AnthropicMode::Messages);
+        assert!(!chat.is_passthrough());
+        assert!(msg.is_passthrough());
+        assert!(chat.chunk_transformer().is_some());
+        assert!(msg.chunk_transformer().is_none());
+    }
+}
