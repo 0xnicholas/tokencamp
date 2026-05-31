@@ -39,7 +39,7 @@ Tokencamp 作为 SaaS 产品需要精确追踪每次 LLM 调用的成本（token
 
 3. **Redis 天然适合队列**: RPUSH/LRANGE/LTRIM 操作都是 O(1)，且 Redis 数据允许丢失（极端情况下丢失几秒的 spend 数据可接受）。
 
-4. **更新聚合字段**: `ApiKey.total_spend`、`Team.total_spend` 这类聚合字段同样通过 Redis 批量更新，不在请求路径上做 UPDATE。
+4. **更新聚合字段**: `ApiKey.total_spend` 聚合字段同样通过 Redis 批量更新，不在请求路径上做 UPDATE。
 
 5. **多实例友好**: 所有 Gateway 实例向同一个 Redis 队列写入，定时任务可以只在一个实例上运行（通过 Redis 分布式锁），避免重复 flush。
 
