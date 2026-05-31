@@ -2157,6 +2157,7 @@ dependencies = [
  "futures",
  "lru",
  "pin-project-lite",
+ "redis",
  "reqwest",
  "serde",
  "serde_json",
