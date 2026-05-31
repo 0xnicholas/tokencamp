@@ -1,0 +1,4 @@
+# Cargo.toml
+[workspace]
+members = ["gateway", "tokencamp-core"]
+resolver = "2"

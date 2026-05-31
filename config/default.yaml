@@ -1,0 +1,18 @@
+# config/default.yaml
+server:
+  host: "0.0.0.0"
+  port: 3000
+
+auth:
+  api_keys:
+    - "sk-tc-dev-key-1"
+    - "sk-tc-dev-key-2"
+
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    base_url: "https://api.openai.com"
+
+model_list:
+  - model_name: gpt-4o-mini
+    provider: openai
