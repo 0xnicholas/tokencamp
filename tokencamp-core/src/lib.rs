@@ -4,3 +4,4 @@ pub mod handler;
 
 pub use types::{ChatRequest, Message, ModelResponse, Choice, Usage};
 pub use provider::{ProviderConfig, ProviderError};
+pub use handler::HttpHandler;
