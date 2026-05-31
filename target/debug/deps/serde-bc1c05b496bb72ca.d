@@ -1,0 +1,14 @@
+/Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/deps/serde-bc1c05b496bb72ca.d: /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/build/serde-d8db2eab7c7e923b/out/private.rs
+
+/Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/deps/libserde-bc1c05b496bb72ca.rlib: /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/build/serde-d8db2eab7c7e923b/out/private.rs
+
+/Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/deps/libserde-bc1c05b496bb72ca.rmeta: /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/build/serde-d8db2eab7c7e923b/out/private.rs
+
+/Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/nicholasl/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/build/serde-d8db2eab7c7e923b/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/nicholasl/Documents/build-whatever/tokencamp/target/debug/build/serde-d8db2eab7c7e923b/out

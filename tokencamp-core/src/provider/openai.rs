@@ -31,9 +31,23 @@ impl ProviderConfig for OpenAiConfig {
     ) -> Result<(Method, String, serde_json::Value), ProviderError> {
         headers.insert(
             "Authorization",
-            format!("Bearer {}", api_key).parse().unwrap(),
+            format!("Bearer {}", api_key)
+                .parse()
+                .map_err(|_| ProviderError::SerializationError(
+                    serde_json::Error::io(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "invalid api key format for header",
+                    ))
+                ))?,
         );
-        headers.insert("Content-Type", "application/json".parse().unwrap());
+        headers.insert(
+            "Content-Type",
+            "application/json".parse().map_err(|_| {
+                ProviderError::SerializationError(serde_json::Error::io(
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid header value"),
+                ))
+            })?,
+        );
 
         let body = serde_json::to_value(request)?;
         Ok((Method::POST, "/v1/chat/completions".to_string(), body))
