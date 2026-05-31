@@ -1,12 +1,12 @@
 use axum::{extract::State, Json};
 use tokencamp_core::{ChatRequest, ModelResponse};
 
-use crate::{error::AppError, auth::KeyAuth, AppState};
+use crate::{error::AppError, auth::KeyAuth, AppState, extractors::ValidJson};
 
 pub async fn chat_completions(
     State(state): State<AppState>,
     _auth: KeyAuth,
-    Json(request): Json<ChatRequest>,
+    ValidJson(request): ValidJson<ChatRequest>,
 ) -> Result<Json<ModelResponse>, AppError> {
     if request.stream.unwrap_or(false) {
         return Err(AppError::StreamNotSupported);

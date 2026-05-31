@@ -2,6 +2,7 @@ mod config;
 mod auth;
 mod error;
 mod routes;
+mod extractors;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
