@@ -5,18 +5,25 @@ mod extractors;
 mod routes;
 mod router;
 mod resilience;
+mod db;
+mod admin;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{routing::{get, post}, Router};
+use axum::{routing::{delete, get, post}, Router};
+use tokencamp_core::DualCache;
 use tokencamp_core::HttpHandler;
 use tokencamp_core::ProviderConfig;
+use tokencamp_core::ProxyHook;
 use tokencamp_core::provider::anthropic::{AnthropicConfig, AnthropicMode};
 use tokencamp_core::provider::openai::OpenAiConfig;
+use tokencamp_core::hooks::parallel_request_limiter::ParallelRequestLimiter;
+use tokencamp_core::hooks::cost_tracker::CostTracker;
 
 use crate::resilience::retry::RetryConfig;
 use crate::router::cooldown::CooldownManager;
+use crate::db::DbPool;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -25,6 +32,9 @@ pub struct AppState {
     pub app_router: Arc<router::Router>,
     pub cooldown: Arc<CooldownManager>,
     pub retry_config: Arc<RetryConfig>,
+    pub cache: Arc<DualCache>,
+    pub db: Option<Arc<DbPool>>,
+    pub hooks: Arc<Vec<Box<dyn ProxyHook>>>,
 }
 
 impl AppState {
@@ -88,27 +98,49 @@ impl AppState {
     }
 }
 
+fn build_hooks(cache: Arc<DualCache>) -> Vec<Box<dyn ProxyHook>> {
+    let cache: Arc<dyn tokencamp_core::CacheLayer> = cache;
+    vec![
+        Box::new(ParallelRequestLimiter::new(cache.clone())),
+        Box::new(CostTracker::new(cache)),
+    ]
+}
+
 #[tokio::main]
 async fn main() {
     let config = Arc::new(config::load("config/default.yaml").expect("Failed to load config"));
     let handler = Arc::new(HttpHandler::new());
 
-    let cooldown = match config.redis.url.as_deref() {
-        Some(url) if !url.is_empty() && url != "${REDIS_URL}" => {
-            let client = redis::Client::open(url)
-                .expect("Failed to create Redis client");
-            let conn = client
-                .get_multiplexed_async_connection()
-                .await
-                .expect("Failed to connect to Redis");
-            CooldownManager::new_redis(conn)
+    // PostgreSQL
+    let db = if let Some(ref url) = config.database_url {
+        if !url.is_empty() {
+            Some(Arc::new(DbPool::new(url).await.expect("Failed to connect to PostgreSQL")))
+        } else {
+            None
         }
-        _ => CooldownManager::new_in_memory(),
+    } else {
+        None
     };
 
+    // Redis / DualCache
+    let cache = match config.redis.url.as_deref() {
+        Some(url) if !url.is_empty() => {
+            let client = redis::Client::open(url).expect("Failed to create Redis client");
+            let conn = client.get_multiplexed_async_connection().await
+                .expect("Failed to connect to Redis");
+            Arc::new(DualCache::new_redis(1000, conn))
+        }
+        _ => Arc::new(DualCache::new_in_memory(1000)),
+    };
+
+    // Cooldown (shared with Router)
+    let cooldown = CooldownManager::new_in_memory(); // v0.3: reuse DualCache for cooldowns later
     let app_router = Arc::new(router::Router::new(cooldown));
     let cooldown = app_router.cooldown().clone();
     let retry_config = Arc::new(RetryConfig::from(config.router_settings.clone()));
+
+    // Hooks
+    let hooks = Arc::new(build_hooks(cache.clone()));
 
     let state = AppState {
         config,
@@ -116,16 +148,22 @@ async fn main() {
         app_router,
         cooldown,
         retry_config,
+        cache,
+        db,
+        hooks,
     };
 
     let app = Router::new()
         .route("/v1/chat/completions", post(routes::chat::chat_completions))
         .route("/v1/messages", post(routes::messages::anthropic_messages))
         .route("/v1/models", get(routes::models::list_models))
+        .route("/admin/keys/generate", post(admin::keys::generate_key))
+        .route("/admin/keys", get(admin::keys::list_keys))
+        // .route("/admin/keys/{id}", delete(admin::keys::delete_key))  // TODO: fix trait bound
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    println!("Tokencamp v0.2 listening on {}", addr);
+    println!("Tokencamp v0.3 listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

@@ -23,7 +23,7 @@ pub struct Message {
     pub content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelResponse {
     pub id: String,
     pub object: String,
@@ -33,7 +33,7 @@ pub struct ModelResponse {
     pub usage: Usage,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Choice {
     pub index: u32,
     pub message: Message,

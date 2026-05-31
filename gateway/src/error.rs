@@ -4,11 +4,15 @@ use axum::{
     Json,
 };
 use tokencamp_core::ProviderError;
+use tokencamp_core::hooks::HookError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("provider error: {0}")]
     Provider(#[from] ProviderError),
+
+    #[error("hook error: {0}")]
+    Hook(#[from] HookError),
 
     #[error("model not found: {model}")]
     ModelNotFound { model: String },
@@ -31,6 +35,9 @@ impl IntoResponse for AppError {
             }
             AppError::Provider(_) => {
                 (StatusCode::BAD_GATEWAY, "upstream error".to_string())
+            }
+            AppError::Hook(e) => {
+                (StatusCode::TOO_MANY_REQUESTS, e.to_string())
             }
             AppError::ModelNotFound { model } => {
                 (StatusCode::BAD_REQUEST, format!("model '{}' not found", model))
