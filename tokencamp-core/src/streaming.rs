@@ -1,5 +1,5 @@
-use std::cell::RefCell;
 use std::pin::Pin;
+use std::sync::Mutex;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
@@ -15,7 +15,7 @@ pin_project! {
         inner: S,
         request: ChatRequest,
         transformer: ChunkTransformer,
-        collected_chunks: RefCell<Vec<OpenAiChunk>>,
+        collected_chunks: Mutex<Vec<OpenAiChunk>>,
         buffer: Vec<u8>,
     }
 }
@@ -29,13 +29,13 @@ where
             inner,
             request,
             transformer,
-            collected_chunks: RefCell::new(Vec::new()),
+            collected_chunks: Mutex::new(Vec::new()),
             buffer: Vec::new(),
         }
     }
 
     pub fn build_full_response(&self) -> Option<ModelResponse> {
-        let chunks = self.collected_chunks.borrow();
+        let chunks = self.collected_chunks.lock().unwrap();
         if chunks.is_empty() {
             return None;
         }
@@ -90,7 +90,7 @@ where
                 // 尝试从 buffer 中提取完整的 SSE 事件
                 if let Some((event_type, data)) = extract_sse_event(this.buffer) {
                     let chunk = (this.transformer)(this.request, &event_type, &data);
-                    this.collected_chunks.borrow_mut().push(chunk.clone());
+                    this.collected_chunks.lock().unwrap().push(chunk.clone());
                     Poll::Ready(Some(Ok(chunk)))
                 } else {
                     // buffer 中还没有完整事件，等待更多数据

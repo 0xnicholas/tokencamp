@@ -8,6 +8,10 @@ pub struct Config {
     pub auth: AuthConfig,
     pub providers: HashMap<String, ProviderEntry>,
     pub model_list: Vec<ModelEntry>,
+    #[serde(default)]
+    pub router_settings: RouterSettings,
+    #[serde(default)]
+    pub redis: RedisConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -31,6 +35,46 @@ pub struct ProviderEntry {
 pub struct ModelEntry {
     pub model_name: String,
     pub provider: String,
+    #[serde(default)]
+    pub litellm_params: Option<LitellmParams>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LitellmParams {
+    pub model: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RouterSettings {
+    #[serde(default = "default_num_retries")]
+    pub num_retries: u32,
+    #[serde(default = "default_retry_after")]
+    pub retry_after: f64,
+    #[serde(default = "default_allowed_fails")]
+    pub allowed_fails: u32,
+    #[serde(default = "default_cooldown_time")]
+    pub cooldown_time: u64,
+}
+
+fn default_num_retries() -> u32 { 3 }
+fn default_retry_after() -> f64 { 0.5 }
+fn default_allowed_fails() -> u32 { 3 }
+fn default_cooldown_time() -> u64 { 30 }
+
+impl Default for RouterSettings {
+    fn default() -> Self {
+        Self {
+            num_retries: default_num_retries(),
+            retry_after: default_retry_after(),
+            allowed_fails: default_allowed_fails(),
+            cooldown_time: default_cooldown_time(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RedisConfig {
+    pub url: Option<String>,
 }
 
 /// 加载 YAML 配置，解析 ${ENV_VAR} 占位符
