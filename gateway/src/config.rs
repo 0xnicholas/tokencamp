@@ -6,12 +6,17 @@ use std::fs;
 pub struct Config {
     pub server: ServerConfig,
     pub auth: AuthConfig,
+    #[serde(default)]
+    pub general_settings: GeneralSettings,
     pub providers: HashMap<String, ProviderEntry>,
     pub model_list: Vec<ModelEntry>,
     #[serde(default)]
     pub router_settings: RouterSettings,
     #[serde(default)]
     pub redis: RedisConfig,
+    #[serde(default)]
+    pub hooks: HooksConfig,
+    pub database_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -23,6 +28,11 @@ pub struct ServerConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct AuthConfig {
     pub api_keys: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct GeneralSettings {
+    pub master_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -42,6 +52,14 @@ pub struct ModelEntry {
 #[derive(Debug, Deserialize, Clone)]
 pub struct LitellmParams {
     pub model: String,
+    #[serde(default)]
+    pub model_info: Option<ModelInfo>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ModelInfo {
+    pub prompt_price: f64,
+    pub completion_price: f64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -54,6 +72,8 @@ pub struct RouterSettings {
     pub allowed_fails: u32,
     #[serde(default = "default_cooldown_time")]
     pub cooldown_time: u64,
+    #[serde(default)]
+    pub fallbacks: HashMap<String, Vec<String>>,
 }
 
 fn default_num_retries() -> u32 { 3 }
@@ -68,6 +88,7 @@ impl Default for RouterSettings {
             retry_after: default_retry_after(),
             allowed_fails: default_allowed_fails(),
             cooldown_time: default_cooldown_time(),
+            fallbacks: HashMap::new(),
         }
     }
 }
@@ -75,6 +96,12 @@ impl Default for RouterSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct RedisConfig {
     pub url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct HooksConfig {
+    #[serde(default)]
+    pub enabled: Vec<String>,
 }
 
 /// 加载 YAML 配置，解析 ${ENV_VAR} 占位符

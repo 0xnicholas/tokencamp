@@ -1,21 +1,33 @@
-# Tokencamp v0.2 config
+# Tokencamp v0.3 config
 server:
   host: "0.0.0.0"
   port: 3000
+
+general_settings:
+  master_key: ${TOKENCAMP_MASTER_KEY}
 
 auth:
   api_keys:
     - "sk-tc-dev-key-1"
     - "sk-tc-dev-key-2"
 
+# database_url: ${DATABASE_URL}  # PostgreSQL, optional for v0.3 (falls back to YAML auth)
+
 router_settings:
   num_retries: 3
   retry_after: 0.5
   allowed_fails: 3
   cooldown_time: 30
+  fallbacks:
+    claude-sonnet-4-5: ["deepseek-chat"]
 
 redis:
-  # url: ${REDIS_URL}  # optional, falls back to in-memory cooldown
+  # url: ${REDIS_URL}
+
+hooks:
+  enabled:
+    - parallel_request_limiter
+    - cost_tracker
 
 providers:
   openai:
@@ -28,7 +40,15 @@ providers:
 model_list:
   - model_name: deepseek-chat
     provider: openai
+    litellm_params:
+      model: deepseek-chat
+      model_info:
+        prompt_price: 0.27
+        completion_price: 1.10
   - model_name: claude-sonnet-4-5
     provider: anthropic
     litellm_params:
       model: claude-sonnet-4-5-20250929
+      model_info:
+        prompt_price: 3.0
+        completion_price: 15.0
