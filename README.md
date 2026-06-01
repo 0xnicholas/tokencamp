@@ -2,72 +2,57 @@
 
 LLM API Gateway built with Rust + Axum.
 
-## v0.4
+**Current**: v0.8 | **52 commits** | **18 tests** | **Zero build errors**
 
-Multi-provider API Gateway with pluggable routing strategies, rate limiting, and cost tracking.
+## Features
 
-### Features
-
-- **OpenAI-compatible API**: `/v1/chat/completions`, `/v1/models`, `/v1/embeddings`
-- **Anthropic support**: `/v1/chat/completions` (conversion) + `/v1/messages` (passthrough)
-- **SSE streaming**: stream:true responses
+- **OpenAI-compatible API**: `/v1/chat/completions`, `/v1/models`, `/v1/embeddings`, `/v1/images/generations`, `/v1/audio/*`
+- **Anthropic support**: Chat Completions + Messages passthrough
+- **SSE streaming** with chunk transformation
 - **5 routing strategies**: simple_shuffle, lowest_cost, lowest_latency, usage_based, tag_based
-- **Rate limiting**: TPM/RPM per API key
-- **Cost tracking**: spend logs with async batch write to PostgreSQL
-- **Resilience**: retry with exponential backoff, cooldown, fallback chains
-- **Admin API**: `/admin/keys/generate`, `/admin/keys`, `/admin/keys/{id}`
+- **Rate limiting** (TPM/RPM per API key) with ParallelRequestLimiter hook
+- **Cost tracking** with async batch write to PostgreSQL
+- **Resilience**: retry + cooldown + fallback chains
+- **Admin API**: `/admin/keys`, `/admin/deployments`
 - **DualCache**: in-memory LRU + Redis
-- **Health checks**: background deployment probing
+- **Response cache**: SHA-256 semantic cache with 5min TTL
+- **AES-256-GCM encryption** for provider credentials
+- **Prometheus /metrics** endpoint
+- **Structured JSON logging** (tracing-subscriber)
+- **CLI tool**: start, migrate, key-rotate, config-check
+- **Health checks** with background probing
 
-### Quick Start
+## Quick Start
 
 ```bash
-# Set API keys
 export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# Start
 cargo run -p gateway
+```
 
-# Use
+```bash
 curl -X POST http://localhost:3000/v1/chat/completions \
   -H "Authorization: Bearer sk-tc-dev-key-1" \
-  -H "Content-Type: application/json" \
   -d '{"model":"deepseek-chat","messages":[{"role":"user","content":"Hello"}]}'
 ```
 
-### Docker
+## Docker
 
 ```bash
-cd docker
-OPENAI_API_KEY=sk-... docker compose up
+cd docker && docker compose up
 ```
 
-### Architecture
+## Architecture
 
-- `gateway/` — Axum HTTP server, auth, config, hooks, router, admin API
-- `tokencamp-core/` — Provider adapters, HTTP handler, streaming, cache, routing strategies
-
-### Configuration
-
-```yaml
-# config/default.yaml
-router_settings:
-  routing_strategy: "lowest_latency"  # or simple_shuffle, lowest_cost, usage_based, tag_based
-hooks:
-  enabled:
-    - parallel_request_limiter
-    - cost_tracker
-model_list:
-  - model_name: deepseek-chat
-    provider: openai
-    litellm_params:
-      model: deepseek-chat
-      model_info:
-        prompt_price: 0.27
-        completion_price: 1.10
+```
+gateway/        Axum HTTP server, auth, hooks, router, admin API
+tokencamp-core/ Provider adapters, HTTP handler, streaming, cache, routing strategies
+cli/            tokencamp CLI
+docs/           16 ADRs, specs, plans
 ```
 
-### What's Next
+## Docs
 
-See [ROADMAP.md](ROADMAP.md) for version plan.
+- [Architecture Decision Records](docs/adr/README.md) (16 ADRs)
+- [Roadmap](ROADMAP.md)
+- [LiteLLM Comparison](docs/adr/COMPARISON-litellm.md)
+- [k-LLM Design](docs/kllm/adr/001-kllm-architecture.md)
