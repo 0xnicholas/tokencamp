@@ -1,0 +1,12 @@
+[package]
+name = "tokencamp"
+version = "0.7.0"
+edition = "2024"
+
+[[bin]]
+name = "tokencamp"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+rand = "0.8"

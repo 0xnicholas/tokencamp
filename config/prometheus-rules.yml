@@ -1,0 +1,18 @@
+groups:
+  - name: tokencamp
+    rules:
+      - alert: HighErrorRate
+        expr: rate(tokencamp_errors_total[5m]) / rate(tokencamp_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate > 5% in the last 5min"
+
+      - alert: HighRateLimitRate
+        expr: rate(tokencamp_rate_limited_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limiting > 10 req/min sustained"
