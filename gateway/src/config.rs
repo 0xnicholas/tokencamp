@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 
@@ -41,7 +41,7 @@ pub struct ProviderEntry {
     pub base_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelEntry {
     pub model_name: String,
     pub provider: String,
@@ -49,14 +49,14 @@ pub struct ModelEntry {
     pub litellm_params: Option<LitellmParams>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LitellmParams {
     pub model: String,
     #[serde(default)]
     pub model_info: Option<ModelInfo>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ModelInfo {
     pub prompt_price: f64,
     pub completion_price: f64,

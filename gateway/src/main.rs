@@ -155,6 +155,8 @@ async fn main() {
         .route("/metrics", get(metrics_handler))
         .route("/admin/keys/generate", post(admin::keys::generate_key))
         .route("/admin/keys", get(admin::keys::list_keys))
+        .route("/admin/deployments", get(admin::deployments::list_deployments).post(admin::deployments::create_deployment))
+        .route("/admin/deployments/{model_name}", axum::routing::delete(admin::deployments::delete_deployment))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
