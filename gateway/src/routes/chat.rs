@@ -28,6 +28,12 @@ pub async fn chat_completions(
         hook.async_pre_call_hook(&request, &auth_ctx).await?;
     }
 
+    // Metrics
+    state.metrics.requests_total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    if stream {
+        state.metrics.requests_streaming.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
     // ---- Resolve provider ----
     let (provider_config, api_key) = state.resolve_provider(&model, &request).await?;
     let provider: Arc<dyn tokencamp_core::ProviderConfig> = provider_config.into();

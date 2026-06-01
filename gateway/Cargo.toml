@@ -16,6 +16,8 @@ redis = { version = "0.27", features = ["tokio-comp", "aio"] }
 rand = "0.8"
 futures = "0.3"
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 sha2 = "0.10"
 hex = "0.4"
