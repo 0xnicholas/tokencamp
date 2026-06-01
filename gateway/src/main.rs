@@ -11,6 +11,7 @@ mod health;
 mod metrics;
 mod encryptor;
 mod secret;
+mod cache;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -49,6 +50,7 @@ pub struct AppState {
     pub hooks: Arc<Vec<Box<dyn ProxyHook>>>,
     pub metrics: Arc<metrics::Metrics>,
     pub secrets: Arc<dyn SecretManager>,
+    pub response_cache: Option<cache::ResponseCache>,
 }
 
 impl AppState {
@@ -149,7 +151,9 @@ async fn main() {
     let encryptor = encryptor::Encryptor::from_env().ok();
     let secrets: Arc<dyn SecretManager> = Arc::new(EnvSecretManager);
 
-    let state = AppState { config, handler, app_router, cooldown, retry_config, cache, db, hooks, metrics, secrets };
+    let response_cache = Some(cache::ResponseCache::new(cache_ref.clone()));
+
+    let state = AppState { config, handler, app_router, cooldown, retry_config, cache, db, hooks, metrics, secrets, response_cache };
 
     let hc = health::HealthChecker::new(state.config.clone());
     hc.start();

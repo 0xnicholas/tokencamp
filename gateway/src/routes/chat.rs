@@ -34,6 +34,16 @@ pub async fn chat_completions(
         state.metrics.requests_streaming.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
+    // ---- Response cache (non-streaming only) ----
+    if !stream {
+        if let Some(ref rc) = state.response_cache {
+            if let Some(cached) = rc.get(&request).await {
+                state.metrics.requests_total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                return Ok(Json(cached).into_response());
+            }
+        }
+    }
+
     // ---- Resolve provider ----
     let (provider_config, api_key) = state.resolve_provider(&model, &request).await?;
     let provider: Arc<dyn tokencamp_core::ProviderConfig> = provider_config.into();
@@ -80,6 +90,12 @@ pub async fn chat_completions(
     let req = request.clone();
     let auth = auth_ctx.clone();
     let resp = result.clone();
+
+    // Cache successful response
+    if let Some(ref rc) = state.response_cache {
+        rc.set(&req, &resp).await;
+    }
+
     tokio::spawn(async move {
         for hook in hooks.iter() {
             hook.async_post_call_hook(&req, &resp, &auth).await;
