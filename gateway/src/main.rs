@@ -9,6 +9,8 @@ mod db;
 mod admin;
 mod health;
 mod metrics;
+mod encryptor;
+mod secret;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -33,6 +35,7 @@ use tokencamp_core::hooks::cost_tracker::CostTracker;
 use crate::resilience::retry::RetryConfig;
 use crate::router::cooldown::CooldownManager;
 use crate::db::DbPool;
+use crate::secret::{SecretManager, EnvSecretManager};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -45,6 +48,7 @@ pub struct AppState {
     pub db: Option<Arc<DbPool>>,
     pub hooks: Arc<Vec<Box<dyn ProxyHook>>>,
     pub metrics: Arc<metrics::Metrics>,
+    pub secrets: Arc<dyn SecretManager>,
 }
 
 impl AppState {
@@ -142,7 +146,10 @@ async fn main() {
     let hooks = Arc::new(build_hooks(cache.clone()));
     let metrics = metrics::Metrics::new();
 
-    let state = AppState { config, handler, app_router, cooldown, retry_config, cache, db, hooks, metrics };
+    let encryptor = encryptor::Encryptor::from_env().ok();
+    let secrets: Arc<dyn SecretManager> = Arc::new(EnvSecretManager);
+
+    let state = AppState { config, handler, app_router, cooldown, retry_config, cache, db, hooks, metrics, secrets };
 
     let hc = health::HealthChecker::new(state.config.clone());
     hc.start();
