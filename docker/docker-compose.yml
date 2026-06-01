@@ -7,5 +7,38 @@ services:
       - "3000:3000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TOKENCAMP_MASTER_KEY=${TOKENCAMP_MASTER_KEY:-sk-master-dev}
+      - DATABASE_URL=postgres://tokencamp:tokencamp@postgres:5432/tokencamp
+      - REDIS_URL=redis://redis:6379
     volumes:
       - ../config:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tokencamp
+      POSTGRES_PASSWORD: tokencamp
+      POSTGRES_DB: tokencamp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tokencamp"]
+      interval: 2s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

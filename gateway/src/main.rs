@@ -7,6 +7,7 @@ mod router;
 mod resilience;
 mod db;
 mod admin;
+mod health;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -58,7 +59,7 @@ impl AppState {
 
         let entry = if candidates.len() > 1 {
             self.app_router
-                .select_deployment(model_name, &candidates)
+                .select_deployment(model_name, &candidates, &self.config.router_settings.fallbacks)
                 .await
                 .map_err(|_| error::AppError::ModelNotFound {
                     model: model_name.to_string(),
@@ -152,6 +153,10 @@ async fn main() {
         db,
         hooks,
     };
+
+    // Health checker
+    let hc = health::HealthChecker::new(state.config.clone());
+    hc.start();
 
     let app = Router::new()
         .route("/v1/chat/completions", post(routes::chat::chat_completions))

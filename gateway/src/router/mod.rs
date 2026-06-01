@@ -28,10 +28,32 @@ impl Router {
 
     pub async fn select_deployment<'a>(
         &self,
-        _model_name: &str,
+        model_name: &str,
         deployments: &'a [ModelEntry],
+        fallbacks: &std::collections::HashMap<String, Vec<String>>,
     ) -> Result<&'a ModelEntry, RouterError> {
-        // 过滤 cooldown 中的 Deployment
+        // 1. 尝试主模型
+        if let Some(dep) = self.try_select(deployments).await {
+            return Ok(dep);
+        }
+
+        // 2. Fallback 链
+        if let Some(alt_models) = fallbacks.get(model_name) {
+            for alt in alt_models {
+                // 注意：fallback 模型需要调用方传入对应的 deployments
+                // 简化：fallback 只支持在当前列表中查找同 provider 的 deployment
+                if let Some(dep) = deployments.iter().find(|d| d.model_name == *alt) {
+                    if !self.cooldown.is_cooling_down(&format!("{}:{}", dep.provider, dep.model_name)).await {
+                        return Ok(dep);
+                    }
+                }
+            }
+        }
+
+        Err(RouterError::NoAvailableDeployment)
+    }
+
+    async fn try_select<'a>(&self, deployments: &'a [ModelEntry]) -> Option<&'a ModelEntry> {
         let mut available = Vec::new();
         for d in deployments {
             let id = format!("{}:{}", d.provider, d.model_name);
@@ -39,13 +61,8 @@ impl Router {
                 available.push(d);
             }
         }
-
-        if available.is_empty() {
-            return Err(RouterError::NoAvailableDeployment);
-        }
-
-        // simple-shuffle
+        if available.is_empty() { return None; }
         let mut rng = rand::thread_rng();
-        Ok(available.choose(&mut rng).unwrap())
+        Some(available.choose(&mut rng).unwrap())
     }
 }
