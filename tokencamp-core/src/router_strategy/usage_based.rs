@@ -68,3 +68,33 @@ impl RoutingStrategy for UsageBasedStrategy {
 
     async fn track_failure(&self, _d: &DeploymentInfo, _e: &ProviderError) {}
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_select_lowest_usage() {
+        let cache = Arc::new(crate::cache::DualCache::new_in_memory(10));
+        let strategy = UsageBasedStrategy::new(cache.clone());
+
+        let dep1 = DeploymentInfo { model_name: "m".into(), provider: "busy".into(), prompt_price: None, completion_price: None, tpm_limit: Some(100), rpm_limit: Some(10), tags: vec![] };
+        let dep2 = DeploymentInfo { model_name: "m".into(), provider: "idle".into(), prompt_price: None, completion_price: None, tpm_limit: Some(100), rpm_limit: Some(10), tags: vec![] };
+
+        // Make dep1 busy
+        for _ in 0..5 { strategy.track_success(&dep1, &make_resp(), None).await; }
+
+        let deps = vec![dep1, dep2];
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra: Default::default() };
+        let selected = strategy.select_deployment(&deps, &request, cache.as_ref()).await.unwrap();
+        assert_eq!(selected.provider, "idle");
+    }
+
+    fn make_resp() -> ModelResponse {
+        ModelResponse {
+            id: "".into(), object: "".into(), created: 0, model: "m".into(),
+            choices: vec![],
+            usage: crate::types::Usage { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }
+    }
+}

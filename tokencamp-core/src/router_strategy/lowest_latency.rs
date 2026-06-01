@@ -83,3 +83,34 @@ impl LowestLatencyStrategy {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_select_fastest() {
+        let cache = Arc::new(crate::cache::DualCache::new_in_memory(10));
+        let strategy = LowestLatencyStrategy::new(cache.clone(), 10);
+
+        let dep1 = DeploymentInfo { model_name: "m".into(), provider: "slow".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] };
+        let dep2 = DeploymentInfo { model_name: "m".into(), provider: "fast".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] };
+
+        // Track some latencies
+        strategy.track_success(&dep1, &make_resp(), Some(1000)).await;
+        strategy.track_success(&dep2, &make_resp(), Some(100)).await;
+
+        let deps = vec![dep1, dep2];
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra: Default::default() };
+        let selected = strategy.select_deployment(&deps, &request, cache.as_ref()).await.unwrap();
+        assert_eq!(selected.provider, "fast");
+    }
+
+    fn make_resp() -> ModelResponse {
+        ModelResponse {
+            id: "".into(), object: "".into(), created: 0, model: "m".into(),
+            choices: vec![],
+            usage: crate::types::Usage { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }
+    }
+}

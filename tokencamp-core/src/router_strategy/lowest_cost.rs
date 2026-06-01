@@ -31,3 +31,26 @@ impl RoutingStrategy for LowestCostStrategy {
         super::NoopTracking.track_failure(d, e).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_deployments() -> Vec<DeploymentInfo> {
+        vec![
+            DeploymentInfo { model_name: "m".into(), provider: "p1".into(), prompt_price: Some(10.0), completion_price: Some(5.0), tpm_limit: None, rpm_limit: None, tags: vec![] },
+            DeploymentInfo { model_name: "m".into(), provider: "p2".into(), prompt_price: Some(5.0), completion_price: Some(3.0), tpm_limit: None, rpm_limit: None, tags: vec![] },
+            DeploymentInfo { model_name: "m".into(), provider: "p3".into(), prompt_price: Some(20.0), completion_price: Some(10.0), tpm_limit: None, rpm_limit: None, tags: vec![] },
+        ]
+    }
+
+    #[tokio::test]
+    async fn test_select_cheapest() {
+        let strategy = LowestCostStrategy;
+        let deps = make_deployments();
+        let cache = crate::cache::DualCache::new_in_memory(10);
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra: Default::default() };
+        let selected = strategy.select_deployment(&deps, &request, &cache).await.unwrap();
+        assert_eq!(selected.provider, "p2"); // cheapest
+    }
+}

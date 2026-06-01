@@ -79,8 +79,12 @@ impl CacheLayer for DualCache {
                 }
                 result
             }
-            DualCacheBackend::InMemory { store, .. } => {
-                store.lock().unwrap().get(key).cloned()
+            DualCacheBackend::InMemory { store, counters, .. } => {
+                // 优先查 store，其次查 counters（incr 写入的目标）
+                if let Some(val) = store.lock().unwrap().get(key) {
+                    return Some(val.clone());
+                }
+                counters.lock().unwrap().get(key).map(|v| v.to_string())
             }
         }
     }

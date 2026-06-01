@@ -39,3 +39,37 @@ impl RoutingStrategy for TagBasedStrategy {
         super::NoopTracking.track_failure(d, e).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn test_tag_matching() {
+        let strategy = TagBasedStrategy;
+        let deps = vec![
+            DeploymentInfo { model_name: "m".into(), provider: "slow".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec!["slow".into()] },
+            DeploymentInfo { model_name: "m".into(), provider: "fast".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec!["fast".into()] },
+        ];
+        let cache = crate::cache::DualCache::new_in_memory(10);
+        let mut extra = HashMap::new();
+        extra.insert("_tags".to_string(), serde_json::json!(["fast"]));
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra };
+        let selected = strategy.select_deployment(&deps, &request, &cache).await.unwrap();
+        assert_eq!(selected.provider, "fast");
+    }
+
+    #[tokio::test]
+    async fn test_no_tags_returns_first() {
+        let strategy = TagBasedStrategy;
+        let deps = vec![
+            DeploymentInfo { model_name: "m".into(), provider: "first".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] },
+            DeploymentInfo { model_name: "m".into(), provider: "second".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] },
+        ];
+        let cache = crate::cache::DualCache::new_in_memory(10);
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra: Default::default() };
+        let selected = strategy.select_deployment(&deps, &request, &cache).await.unwrap();
+        assert_eq!(selected.provider, "first");
+    }
+}

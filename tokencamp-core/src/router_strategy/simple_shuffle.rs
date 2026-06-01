@@ -28,3 +28,21 @@ impl RoutingStrategy for SimpleShuffleStrategy {
         NoopTracking.track_failure(d, e).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_select_returns_one() {
+        let strategy = SimpleShuffleStrategy;
+        let deps = vec![
+            DeploymentInfo { model_name: "m".into(), provider: "p1".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] },
+            DeploymentInfo { model_name: "m".into(), provider: "p2".into(), prompt_price: None, completion_price: None, tpm_limit: None, rpm_limit: None, tags: vec![] },
+        ];
+        let cache = crate::cache::DualCache::new_in_memory(10);
+        let request = ChatRequest { model: "m".into(), messages: vec![], temperature: None, max_tokens: None, stream: None, extra: Default::default() };
+        let selected = strategy.select_deployment(&deps, &request, &cache).await;
+        assert!(selected.is_some());
+    }
+}
