@@ -14,6 +14,7 @@ auth:
 # database_url: ${DATABASE_URL}  # PostgreSQL, optional for v0.3 (falls back to YAML auth)
 
 router_settings:
+  routing_strategy: "simple_shuffle"
   num_retries: 3
   retry_after: 0.5
   allowed_fails: 3
