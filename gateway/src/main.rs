@@ -182,6 +182,7 @@ async fn main() {
         .route("/v1/chat/completions", post(routes::chat::chat_completions))
         .route("/v1/messages", post(routes::messages::anthropic_messages))
         .route("/v1/models", get(routes::models::list_models))
+        .route("/v1/embeddings", post(routes::embeddings::embeddings))
         .route("/admin/keys/generate", post(admin::keys::generate_key))
         .route("/admin/keys", get(admin::keys::list_keys))
         // .route("/admin/keys/{id}", delete(admin::keys::delete_key))  // TODO: fix trait bound
