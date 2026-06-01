@@ -4,6 +4,7 @@ pub mod handler;
 pub mod streaming;
 pub mod cache;
 pub mod hooks;
+pub mod router_strategy;
 
 pub use types::{ChatRequest, Message, ModelResponse, Choice, Usage};
 pub use types::{OpenAiChunk, ChunkChoice, Delta};
@@ -12,3 +13,4 @@ pub use handler::HttpHandler;
 pub use cache::{CacheLayer, DualCache};
 pub use hooks::{AuthContext, ProxyHook, ModelPricing};
 pub use streaming::StreamWrapper;
+pub use router_strategy::{RoutingStrategy, DeploymentInfo};

@@ -29,7 +29,7 @@ pub async fn chat_completions(
     }
 
     // ---- Resolve provider ----
-    let (provider_config, api_key) = state.resolve_provider(&model).await?;
+    let (provider_config, api_key) = state.resolve_provider(&model, &request).await?;
     let provider: Arc<dyn tokencamp_core::ProviderConfig> = provider_config.into();
     let deployment_id = format!("{}:{}", "resolved", &model);
 

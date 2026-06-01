@@ -11,7 +11,7 @@ pub async fn anthropic_messages(
     ValidJson(request): ValidJson<ChatRequest>,
 ) -> Result<Json<Value>, AppError> {
     let model = request.model.clone();
-    let (provider_config, api_key) = state.resolve_provider(&model).await?;
+    let (provider_config, api_key) = state.resolve_provider(&model, &request).await?;
     let deployment_id = format!("{}:{}", "resolved", &model);
 
     let max_retries = state.retry_config.num_retries;

@@ -17,6 +17,12 @@ use tokencamp_core::DualCache;
 use tokencamp_core::HttpHandler;
 use tokencamp_core::ProviderConfig;
 use tokencamp_core::ProxyHook;
+use tokencamp_core::RoutingStrategy;
+use tokencamp_core::router_strategy::simple_shuffle::SimpleShuffleStrategy;
+use tokencamp_core::router_strategy::lowest_cost::LowestCostStrategy;
+use tokencamp_core::router_strategy::lowest_latency::LowestLatencyStrategy;
+use tokencamp_core::router_strategy::usage_based::UsageBasedStrategy;
+use tokencamp_core::router_strategy::tag_based::TagBasedStrategy;
 use tokencamp_core::provider::anthropic::{AnthropicConfig, AnthropicMode};
 use tokencamp_core::provider::openai::OpenAiConfig;
 use tokencamp_core::hooks::parallel_request_limiter::ParallelRequestLimiter;
@@ -42,6 +48,7 @@ impl AppState {
     pub async fn resolve_provider(
         &self,
         model_name: &str,
+        request: &tokencamp_core::ChatRequest,
     ) -> Result<(Box<dyn ProviderConfig>, String), error::AppError> {
         let candidates: Vec<config::ModelEntry> = self
             .config
@@ -59,7 +66,7 @@ impl AppState {
 
         let entry = if candidates.len() > 1 {
             self.app_router
-                .select_deployment(model_name, &candidates, &self.config.router_settings.fallbacks)
+                .select_deployment(model_name, &candidates, request, &self.config.router_settings.fallbacks, self.cache.as_ref())
                 .await
                 .map_err(|_| error::AppError::ModelNotFound {
                     model: model_name.to_string(),
@@ -107,6 +114,16 @@ fn build_hooks(cache: Arc<DualCache>) -> Vec<Box<dyn ProxyHook>> {
     ]
 }
 
+fn build_strategy(config: &config::Config, cache: Arc<dyn tokencamp_core::CacheLayer>) -> Box<dyn RoutingStrategy> {
+    match config.router_settings.routing_strategy.as_str() {
+        "lowest_cost" => Box::new(LowestCostStrategy),
+        "lowest_latency" => Box::new(LowestLatencyStrategy::new(cache, config.router_settings.latency_window_size)),
+        "usage_based" => Box::new(UsageBasedStrategy::new(cache)),
+        "tag_based" => Box::new(TagBasedStrategy),
+        _ => Box::new(SimpleShuffleStrategy),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let config = Arc::new(config::load("config/default.yaml").expect("Failed to load config"));
@@ -136,7 +153,10 @@ async fn main() {
 
     // Cooldown (shared with Router)
     let cooldown = CooldownManager::new_in_memory(); // v0.3: reuse DualCache for cooldowns later
-    let app_router = Arc::new(router::Router::new(cooldown));
+    // Strategy
+    let cache_ref: Arc<dyn tokencamp_core::CacheLayer> = cache.clone();
+    let strategy = build_strategy(&config, cache_ref.clone());
+    let app_router = Arc::new(router::Router::new(cooldown, strategy));
     let cooldown = app_router.cooldown().clone();
     let retry_config = Arc::new(RetryConfig::from(config.router_settings.clone()));
 

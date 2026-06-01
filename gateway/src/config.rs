@@ -60,6 +60,12 @@ pub struct LitellmParams {
 pub struct ModelInfo {
     pub prompt_price: f64,
     pub completion_price: f64,
+    #[serde(default)]
+    pub tpm: Option<u32>,
+    #[serde(default)]
+    pub rpm: Option<u32>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -74,12 +80,18 @@ pub struct RouterSettings {
     pub cooldown_time: u64,
     #[serde(default)]
     pub fallbacks: HashMap<String, Vec<String>>,
+    #[serde(default = "default_routing_strategy")]
+    pub routing_strategy: String,
+    #[serde(default = "default_latency_window")]
+    pub latency_window_size: usize,
 }
 
 fn default_num_retries() -> u32 { 3 }
 fn default_retry_after() -> f64 { 0.5 }
 fn default_allowed_fails() -> u32 { 3 }
 fn default_cooldown_time() -> u64 { 30 }
+fn default_routing_strategy() -> String { "simple_shuffle".into() }
+fn default_latency_window() -> usize { 10 }
 
 impl Default for RouterSettings {
     fn default() -> Self {
@@ -89,6 +101,8 @@ impl Default for RouterSettings {
             allowed_fails: default_allowed_fails(),
             cooldown_time: default_cooldown_time(),
             fallbacks: HashMap::new(),
+            routing_strategy: default_routing_strategy(),
+            latency_window_size: default_latency_window(),
         }
     }
 }
